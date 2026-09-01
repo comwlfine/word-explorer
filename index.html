@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>단어 탐험 사전</title>
+  <style>
+    :root {
+      --primary: #FF7A00;
+      --primary-light: #FFF0E0;
+      --bg: #FFFDF9;
+      --card-bg: #FFFFFF;
+      --text: #2D3748;
+      --accent: #4C6EF5;
+      --success: #37B24D;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 16px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* 상단 헤더 */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 4px;
+    }
+    .header h1 {
+      font-size: 22px;
+      margin: 0;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .settings-btn {
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    /* 검색 입력 영역 */
+    .search-box {
+      display: flex;
+      gap: 8px;
+      background: var(--card-bg);
+      padding: 6px;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+    .search-box input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-size: 17px;
+      padding: 10px 14px;
+      border-radius: 12px;
+    }
+    .search-box button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 0 16px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    /* 빠른 액션 버튼 (음성 / 사진) */
+    .action-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .action-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px;
+      border-radius: 16px;
+      border: none;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.04);
+      transition: transform 0.1s;
+    }
+    .action-btn:active { transform: scale(0.98); }
+    .btn-voice { background-color: var(--primary-light); color: var(--primary); }
+    .btn-photo { background-color: #EEF2FF; color: var(--accent); }
+
+    /* 로딩 상태 */
+    .loading-state {
+      display: none;
+      text-align: center;
+      padding: 40px 20px;
+      background: var(--card-bg);
+      border-radius: 20px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid var(--primary-light);
+      border-top: 4px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    /* 결과 카드 */
+    .result-card {
+      display: none;
+      background: var(--card-bg);
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+      flex-direction: column;
+      gap: 20px;
+    }
+    .word-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 2px dashed #F1F3F5;
+      padding-bottom: 16px;
+    }
+    .word-title {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--primary);
+      margin: 0;
+    }
+    .word-sub {
+      font-size: 16px;
+      color: #718096;
+      margin-top: 4px;
+    }
+    .tts-btn {
+      background: var(--primary-light);
+      border: none;
+      border-radius: 50%;
+      width: 44px;
+      height: 44px;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .section-block {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .section-label {
+      font-size: 14px;
+      font-weight: 700;
+      color: #A0AEC0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .section-content {
+      font-size: 16px;
+      line-height: 1.6;
+      background: #F8FAFC;
+      padding: 12px 16px;
+      border-radius: 14px;
+    }
+
+    /* 퀴즈 박스 */
+    .quiz-box {
+      background: #F0FDF4;
+      border: 1px solid #DCFCE7;
+      padding: 16px;
+      border-radius: 16px;
+    }
+    .quiz-title {
+      font-weight: bold;
+      color: var(--success);
+      margin-bottom: 10px;
+      font-size: 15px;
+    }
+    .quiz-options {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .quiz-opt-btn {
+      background: white;
+      border: 1px solid #CBD5E1;
+      padding: 10px 14px;
+      border-radius: 10px;
+      text-align: left;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .quiz-opt-btn.correct { background: #DCFCE7; border-color: var(--success); font-weight: bold; }
+    .quiz-opt-btn.wrong { background: #FEE2E2; border-color: #EF4444; }
+
+    /* API Key 설정 모달 */
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 100;
+    }
+    .modal-content {
+      background: white;
+      padding: 24px;
+      border-radius: 20px;
+      width: 100%;
+      max-width: 360px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- 헤더 -->
+    <div class="header">
+      <h1>🧭 단어 탐험 사전</h1>
+      <button class="settings-btn" onclick="openSettings()">⚙️</button>
+    </div>
+
+    <!-- 1. 타이핑 검색 -->
+    <div class="search-box">
+      <input type="text" id="wordInput" placeholder="궁금한 단어를 적어봐!" onkeydown="if(event.key==='Enter') searchWord()" />
+      <button onclick="searchWord()">찾기</button>
+    </div>
+
+    <!-- 2. 빠른 입력 버튼 -->
+    <div class="action-buttons">
+      <button class="action-btn btn-voice" onclick="startSpeechRecognition()">
+        <span>🎙️</span> 말로 찾기
+      </button>
+      <button class="action-btn btn-photo" onclick="triggerCamera()">
+        <span>📷</span> 책 사진 찍기
+      </button>
+      <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none;" onchange="handleImageUpload(event)" />
+    </div>
+
+    <!-- 로딩 인디케이터 -->
+    <div id="loading" class="loading-state">
+      <div class="spinner"></div>
+      <div id="loadingText" style="font-weight:bold; color:var(--primary);">AI 친구가 단어 탐험을 떠났어요...</div>
+    </div>
+
+    <!-- 결과 카드 -->
+    <div id="resultCard" class="result-card">
+      <div class="word-header">
+        <div>
+          <h2 id="cardWord" class="word-title">Word</h2>
+          <div id="cardPhonetic" class="word-sub">[발음] 한글 뜻</div>
+        </div>
+        <button class="tts-btn" onclick="playTTS()">🔊</button>
+      </div>
+
+      <div class="section-block">
+        <div class="section-label">💡 무슨 뜻일까?</div>
+        <div id="cardExplanation" class="section-content"></div>
+      </div>
+
+      <div class="section-block">
+        <div class="section-label">🌱 단어 이야기 (어원)</div>
+        <div id="cardOrigin" class="section-content"></div>
+      </div>
+
+      <div class="section-block">
+        <div class="section-label">✨ 따라 말해보기</div>
+        <div id="cardExample" class="section-content"></div>
+      </div>
+
+      <div id="quizContainer" class="quiz-box">
+        <div class="quiz-title">🧩 미니 퀴즈</div>
+        <div id="quizQuestion" style="margin-bottom:8px; font-size:14px;"></div>
+        <div id="quizOptions" class="quiz-options"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- API Key 설정 모달 -->
+  <div id="settingsModal" class="modal">
+    <div class="modal-content">
+      <h3 style="margin:0;">⚙️ 부모님 설정</h3>
+      <p style="font-size:13px; color:#666; margin:0;">Google AI Studio에서 발급받은 Gemini API 키를 넣어주세요.</p>
+      <input type="password" id="apiKeyInput" placeholder="AIzaSy..." style="padding:10px; border:1px solid #CBD5E1; border-radius:8px; font-size:14px;" />
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button onclick="closeSettings()" style="padding:8px 14px; border:none; background:#E2E8F0; border-radius:8px; cursor:pointer;">취소</button>
+        <button onclick="saveApiKey()" style="padding:8px 14px; border:none; background:var(--primary); color:white; border-radius:8px; cursor:pointer;">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SYSTEM_INSTRUCTION = `
+당신은 9살 초등학교 2~3학년 아이를 위한 매우 친절하고 다정한 영어 튜터입니다.
+아이의 질문(단어 또는 이미지 속 단어)에 대해 반드시 아래 명시된 JSON 형식으로만 응답하세요.
+
+규칙:
+1. 아이가 단어 철자를 조금 틀려도 원래 의도한 올바른 단어를 찾아 설명합니다.
+2. simple_explanation: 9세 눈높이에 맞는 일상적 비유나 쉬운 상황으로 2~3문장 설명합니다.
+3. etymology_story: '옛날 이야기'를 들려주듯 라틴어/그리스어 어원의 원래 뜻을 그림 그리듯 재미있게 풀어줍니다.
+4. easy_example: 5단어 내외의 초등 수준 짧은 영어 예문과 자연스러운 한글 번역을 함께 작성합니다.
+5. quick_quiz: 아이가 방금 배운 단어의 뉘앙스를 재미있게 확인할 수 있는 2지선다 퀴즈를 만듭니다 (answer는 정답 번호 1 또는 2).
+
+반환할 JSON 구조:
+{
+  "word": "Curious",
+  "phonetic_kr": "큐리어스",
+  "korean_meaning": "궁금한 게 아주 많은",
+  "simple_explanation": "설명 내용...",
+  "etymology_story": "어원 이야기...",
+  "easy_example": "The curious cat opened the box. (호기심 많은 고양이가 상자를 열었어요.)",
+  "quick_quiz": {
+    "question": "퀴즈 질문...",
+    "options": ["1번 선택지", "2번 선택지"],
+    "answer": 1
+  }
+}
+`;
+
+    let currentWordData = null;
+
+    window.onload = function() {
+      if (!localStorage.getItem('gemini_api_key')) {
+        openSettings();
+      }
+    };
+
+    function openSettings() {
+      document.getElementById('apiKeyInput').value = localStorage.getItem('gemini_api_key') || '';
+      document.getElementById('settingsModal').style.display = 'flex';
+    }
+    function closeSettings() {
+      document.getElementById('settingsModal').style.display = 'none';
+    }
+    function saveApiKey() {
+      const key = document.getElementById('apiKeyInput').value.trim();
+      if (key) {
+        localStorage.setItem('gemini_api_key', key);
+        closeSettings();
+        alert('API 키가 저장되었습니다!');
+      }
+    }
+
+    function getApiKey() {
+      const key = localStorage.getItem('gemini_api_key');
+      if (!key) {
+        openSettings();
+        return null;
+      }
+      return key;
+    }
+
+    function setLoading(isLoading, text = "AI 친구가 단어 탐험을 떠났어요...") {
+      document.getElementById('loading').style.display = isLoading ? 'block' : 'none';
+      document.getElementById('loadingText').innerText = text;
+      if (isLoading) document.getElementById('resultCard').style.display = 'none';
+    }
+
+    // 1. 단어 텍스트 검색
+    async function searchWord() {
+      const input = document.getElementById('wordInput');
+      const word = input.value.trim();
+      if (!word) return;
+
+      const apiKey = getApiKey();
+      if (!apiKey) return;
+
+      setLoading(true);
+
+      const prompt = `단어 "${word}"에 대해 9살 눈높이 맞춤형 설명 JSON을 만들어줘.`;
+      await callGemini(apiKey, prompt);
+    }
+
+    // 2. 음성 검색 (STT)
+    function startSpeechRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        alert("이 브라우저는 음성 인식을 지원하지 않습니다. (Chrome/Safari 권장)");
+        return;
+      }
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'en-US'; // 영어 우선 인식 (필요 시 'ko-KR' 병행 가능)
+      setLoading(true, "듣고 있어요! 단어를 말해보세요...");
+
+      recognition.onresult = function(event) {
+        const spokenWord = event.results[0][0].transcript;
+        document.getElementById('wordInput').value = spokenWord;
+        setLoading(true, `"${spokenWord}" 찾는 중...`);
+        searchWord();
+      };
+      recognition.onerror = function() {
+        setLoading(false);
+        alert("음성을 인식하지 못했어요. 다시 시도해 주세요.");
+      };
+      recognition.start();
+    }
+
+    // 3. 사진 촬영 트리거
+    function triggerCamera() {
+      document.getElementById('cameraInput').click();
+    }
+
+    async function handleImageUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const apiKey = getApiKey();
+      if (!apiKey) return;
+
+      setLoading(true, "사진에서 형광펜/밑줄 단어를 찾는 중...");
+
+      const base64Image = await fileToBase64(file);
+      const cleanBase64 = base64Image.split(',')[1];
+
+      const prompt = "이 사진에서 형광펜으로 칠해져 있거나 밑줄 그어진 영어 단어를 하나 찾아내고, 그 단어에 대해 9살 맞춤형 설명 JSON을 만들어줘.";
+      await callGeminiVision(apiKey, prompt, cleanBase64, file.type);
+    }
+
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+      });
+    }
+
+    // Gemini API 호출 (텍스트)
+    async function callGemini(apiKey, userPrompt) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      const payload = {
+        system_instruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
+        contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+        generationConfig: { response_mime_type: "application/json" }
+      };
+
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        const jsonText = data.candidates[0].content.parts[0].text;
+        renderResult(JSON.parse(jsonText));
+      } catch (err) {
+        console.error(err);
+        alert("단어를 찾는 도중 문제가 생겼어요. 다시 시도해 주세요.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // Gemini API 호출 (멀티모달 비전)
+    async function callGeminiVision(apiKey, userPrompt, base64Data, mimeType) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      const payload = {
+        system_instruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
+        contents: [{
+          role: "user",
+          parts: [
+            { text: userPrompt },
+            { inline_data: { mime_type: mimeType, data: base64Data } }
+          ]
+        }],
+        generationConfig: { response_mime_type: "application/json" }
+      };
+
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        const jsonText = data.candidates[0].content.parts[0].text;
+        renderResult(JSON.parse(jsonText));
+      } catch (err) {
+        console.error(err);
+        alert("사진 속 단어를 읽지 못했어요. 단어가 잘 보이게 다시 찍어보세요.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // 화면에 결과 렌더링
+    function renderResult(data) {
+      currentWordData = data;
+      document.getElementById('cardWord').innerText = data.word;
+      document.getElementById('cardPhonetic').innerText = `[${data.phonetic_kr}] ${data.korean_meaning}`;
+      document.getElementById('cardExplanation').innerText = data.simple_explanation;
+      document.getElementById('cardOrigin').innerText = data.etymology_story;
+      document.getElementById('cardExample').innerText = data.easy_example;
+
+      // 퀴즈 렌더링
+      document.getElementById('quizQuestion').innerText = data.quick_quiz.question;
+      const optContainer = document.getElementById('quizOptions');
+      optContainer.innerHTML = '';
+
+      data.quick_quiz.options.forEach((optText, index) => {
+        const btn = document.createElement('button');
+        btn.className = 'quiz-opt-btn';
+        btn.innerText = optText;
+        btn.onclick = () => checkQuiz(index + 1, data.quick_quiz.answer, btn);
+        optContainer.appendChild(btn);
+      });
+
+      document.getElementById('resultCard').style.display = 'flex';
+    }
+
+    // 퀴즈 정답 확인
+    function checkQuiz(selected, answer, btn) {
+      const allBtns = document.querySelectorAll('.quiz-opt-btn');
+      allBtns.forEach(b => b.disabled = true);
+
+      if (selected === answer) {
+        btn.classList.add('correct');
+        btn.innerText += " ✅ 정답이에요!";
+      } else {
+        btn.classList.add('wrong');
+        btn.innerText += " ❌ 아쉬워요!";
+      }
+    }
+
+    // TTS 발음 듣기
+    function playTTS() {
+      if (!currentWordData) return;
+      const utter = new SpeechSynthesisUtterance(currentWordData.word);
+      utter.lang = 'en-US';
+      utter.rate = 0.85; // 아이가 따라 하기 좋게 약간 느린 속도
+      window.speechSynthesis.speak(utter);
+    }
+  </script>
+</body>
+</html>
