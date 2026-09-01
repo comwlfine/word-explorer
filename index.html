@@ -456,13 +456,27 @@
       });
     }
 
-    // Gemini API 호출 (텍스트)
+// 안전한 JSON 파서 (마크다운 ```json 제거)
+    function parseSafeJSON(text) {
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        return JSON.parse(cleaned);
+      }
+    }
+
+    // Gemini API 호출 (텍스트) - 개선 버전
     async function callGemini(apiKey, userPrompt) {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      // gemini-2.5-flash 또는 gemini-1.5-flash 모두 대응
+      const url = `[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$){apiKey}`;
       const payload = {
         system_instruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
         contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-        generationConfig: { response_mime_type: "application/json" }
+        generationConfig: { 
+          response_mime_type: "application/json",
+          temperature: 0.7
+        }
       };
 
       try {
@@ -471,17 +485,25 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
+
         const data = await res.json();
+
+        // API 에러 응답 처리
+        if (data.error) {
+          throw new Error(`API 오류 (${data.error.code}): ${data.error.message}`);
+        }
+
         const jsonText = data.candidates[0].content.parts[0].text;
-        renderResult(JSON.parse(jsonText));
+        const parsed = parseSafeJSON(jsonText);
+        renderResult(parsed);
       } catch (err) {
         console.error(err);
-        alert("단어를 찾는 도중 문제가 생겼어요. 다시 시도해 주세요.");
+        alert(`오류가 발생했습니다: ${err.message}`);
       } finally {
         setLoading(false);
       }
     }
-
+    
     // Gemini API 호출 (멀티모달 비전)
     async function callGeminiVision(apiKey, userPrompt, base64Data, mimeType) {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
