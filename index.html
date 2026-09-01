@@ -84,7 +84,7 @@
       cursor: pointer;
     }
 
-    /* 빠른 액션 버튼 */
+    /* 빠른 액션 버튼 (음성 / 사진) */
     .action-buttons {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -321,33 +321,33 @@
   </div>
 
   <script>
-    // 시스템 프롬프트: 정확한 단어 매칭 및 9세 눈높이 설명
+    // 시스템 프롬프트: '정확한 단어 매칭' 규칙을 강력하게 추가했습니다.
     const SYSTEM_INSTRUCTION = `
 당신은 9살 초등학교 2~3학년 아이를 위한 매우 친절하고 다정한 영어 튜터입니다.
-사용자가 입력한 영어 단어 또는 한글 단어에 대해 반드시 일치하는 정확한 대상 단어를 설명해야 합니다. 다른 임의의 단어로 변경하거나 추측하지 마세요.
-반드시 아래 JSON 포맷으로만 응답하세요.
+사용자가 질문한 단어를 임의로 다른 단어로 유추하거나 바꾸지 말고, 입력된 단어 그대로 정확하게 설명하세요.
+반드시 아래 명시된 JSON 형식으로만 응답하세요.
 
 규칙:
-1. word: 사용자가 검색한 바로 그 영단어 (첫 글자 대문자 표기).
-2. phonetic_kr: 한국어로 가장 읽기 쉬운 정확한 한글 발음 표기.
-3. korean_meaning: 초등학생이 바로 이해할 수 있는 명확한 한글 뜻.
+1. word: 사용자가 검색한 정확한 단어 (첫 글자 대문자).
+2. phonetic_kr: 9살 아이가 읽기 쉬운 한글 발음.
+3. korean_meaning: 초등학생이 이해하기 쉬운 명확한 한글 뜻.
 4. simple_explanation: 9세 눈높이에 맞는 일상적 비유나 쉬운 상황으로 2~3문장 설명.
-5. etymology_story: '옛날 이야기'를 들려주듯 라틴어/그리스어 어원의 원래 뿌리 뜻을 그림 그리듯 재미있게 풀어줌.
+5. etymology_story: '옛날 이야기'를 들려주듯 라틴어/그리스어 어원의 원래 뜻을 그림 그리듯 재미있게 풀어줌.
 6. easy_example: 5단어 내외의 초등 수준 짧은 영어 예문과 자연스러운 한글 번역.
-7. quick_quiz: 아이가 배운 단어의 뉘앙스를 재미있게 확인할 수 있는 2지선다 퀴즈 (answer는 정답 번호 1 또는 2).
+7. quick_quiz: 아이가 방금 배운 단어의 뉘앙스를 재미있게 확인할 수 있는 2지선다 퀴즈 (answer는 정답 번호 1 또는 2).
 
 반환할 JSON 구조:
 {
   "word": "Curious",
   "phonetic_kr": "큐리어스",
   "korean_meaning": "궁금한 게 아주 많은",
-  "simple_explanation": "새로운 상자를 보면 '안에 뭐가 들었을까?' 하고 열어보고 싶어 하는 마음이에요!",
-  "etymology_story": "옛날 라틴어 'cura(돌보다, 신경 쓰다)'에서 왔어요. 무언가에 관심이 많아서 눈을 떼지 못하는 모습을 뜻해요.",
+  "simple_explanation": "설명 내용...",
+  "etymology_story": "어원 이야기...",
   "easy_example": "The curious cat opened the box. (호기심 많은 고양이가 상자를 열었어요.)",
   "quick_quiz": {
-    "question": "다음 중 'Curious'한 친구는 누구일까요?",
-    "options": ["1. 그냥 지나가는 친구", "2. 왜 그런지 질문하는 친구"],
-    "answer": 2
+    "question": "퀴즈 질문...",
+    "options": ["1번 선택지", "2번 선택지"],
+    "answer": 1
   }
 }
 `;
@@ -372,7 +372,7 @@
       if (key) {
         localStorage.setItem('gemini_api_key', key);
         closeSettings();
-        alert('API 키가 안전하게 저장되었습니다!');
+        alert('API 키가 저장되었습니다!');
       }
     }
 
@@ -391,239 +391,9 @@
       if (isLoading) document.getElementById('resultCard').style.display = 'none';
     }
 
+    // JSON 파싱 안전장치
     function parseSafeJSON(text) {
       try {
         return JSON.parse(text);
       } catch (e) {
-        const cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-        return JSON.parse(cleaned);
-      }
-    }
-
-    // 1. 단어 텍스트 검색
-    async function searchWord() {
-      const input = document.getElementById('wordInput');
-      const word = input.value.trim();
-      if (!word) {
-        alert("궁금한 단어를 입력해 주세요!");
-        return;
-      }
-
-      const apiKey = getApiKey();
-      if (!apiKey) return;
-
-      setLoading(true, `"${word}" 단어를 정확하게 탐험 중...`);
-
-      const prompt = `영단어 "${word}"에 대한 정확한 9세 맞춤형 설명 JSON을 생성해줘.`;
-      await callGemini(apiKey, prompt);
-    }
-
-    // 2. 음성 검색 (STT)
-    function startSpeechRecognition() {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        alert("현재 브라우저에서는 음성 인식을 지원하지 않습니다. Chrome 또는 Safari를 이용해 주세요.");
-        return;
-      }
-      
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'en-US'; // 영어 발음 우선 인식
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-
-      setLoading(true, "듣고 있어요! 영어 단어를 말해보세요...");
-
-      recognition.onresult = function(event) {
-        const spokenWord = event.results[0][0].transcript.replace(/[.,?!]/g, '').trim();
-        document.getElementById('wordInput').value = spokenWord;
-        setLoading(true, `"${spokenWord}" 찾는 중...`);
-        searchWord();
-      };
-
-      recognition.onerror = function(event) {
-        setLoading(false);
-        console.error("STT Error:", event.error);
-        if (event.error === 'not-allowed') {
-          alert("마이크 사용 권한을 허용해 주세요!");
-        } else {
-          alert("음성을 정확히 듣지 못했어요. 다시 한 번 말씀해 주세요.");
-        }
-      };
-
-      recognition.onend = function() {
-        // 음성 인식이 끝났으나 결과가 없을 경우 대비
-      };
-
-      try {
-        recognition.start();
-      } catch (e) {
-        setLoading(false);
-        console.error(e);
-      }
-    }
-
-    // 3. 사진 촬영 트리거
-    function triggerCamera() {
-      document.getElementById('cameraInput').click();
-    }
-
-    async function handleImageUpload(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const apiKey = getApiKey();
-      if (!apiKey) return;
-
-      setLoading(true, "사진에서 형광펜/밑줄 단어를 찾는 중...");
-
-      try {
-        const base64Image = await fileToBase64(file);
-        const cleanBase64 = base64Image.split(',')[1];
-        const prompt = "이 사진에서 노란색/분홍색 형광펜이 칠해져 있거나 밑줄이 그어진 영단어를 정확히 하나 찾아서, 그 단어에 대한 9세 맞춤형 설명 JSON을 만들어줘.";
-        await callGeminiVision(apiKey, prompt, cleanBase64, file.type);
-      } catch (err) {
-        setLoading(false);
-        alert("이미지를 처리하는 중 오류가 발생했습니다.");
-      }
-    }
-
-    function fileToBase64(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = error => reject(error);
-      });
-    }
-
-    // Gemini API 호출 (텍스트)
-    async function callGemini(apiKey, userPrompt) {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-      const payload = {
-        system_instruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
-        contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-        generationConfig: { 
-          response_mime_type: "application/json",
-          temperature: 0.2 // 정확도 향상을 위해 온도 낮춤
-        }
-      };
-
-      try {
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        const data = await res.json();
-
-        if (data.error) {
-          throw new Error(`[API 오류] ${data.error.message}`);
-        }
-
-        const jsonText = data.candidates[0].content.parts[0].text;
-        const parsed = parseSafeJSON(jsonText);
-        renderResult(parsed);
-      } catch (err) {
-        console.error(err);
-        alert(`검색 실패: ${err.message}`);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    // Gemini API 호출 (사진 비전)
-    async function callGeminiVision(apiKey, userPrompt, base64Data, mimeType) {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-      const payload = {
-        system_instruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
-        contents: [{
-          role: "user",
-          parts: [
-            { text: userPrompt },
-            { inline_data: { mime_type: mimeType, data: base64Data } }
-          ]
-        }],
-        generationConfig: { 
-          response_mime_type: "application/json",
-          temperature: 0.2
-        }
-      };
-
-      try {
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        const data = await res.json();
-
-        if (data.error) {
-          throw new Error(`[API 오류] ${data.error.message}`);
-        }
-
-        const jsonText = data.candidates[0].content.parts[0].text;
-        const parsed = parseSafeJSON(jsonText);
-        renderResult(parsed);
-      } catch (err) {
-        console.error(err);
-        alert(`사진 분석 실패: ${err.message}`);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    // 화면 결과 렌더링
-    function renderResult(data) {
-      currentWordData = data;
-      document.getElementById('cardWord').innerText = data.word;
-      document.getElementById('cardPhonetic').innerText = `[${data.phonetic_kr}] ${data.korean_meaning}`;
-      document.getElementById('cardExplanation').innerText = data.simple_explanation;
-      document.getElementById('cardOrigin').innerText = data.etymology_story;
-      document.getElementById('cardExample').innerText = data.easy_example;
-
-      // 퀴즈 렌더링
-      document.getElementById('quizQuestion').innerText = data.quick_quiz.question;
-      const optContainer = document.getElementById('quizOptions');
-      optContainer.innerHTML = '';
-
-      data.quick_quiz.options.forEach((optText, index) => {
-        const btn = document.createElement('button');
-        btn.className = 'quiz-opt-btn';
-        btn.innerText = optText;
-        btn.onclick = () => checkQuiz(index + 1, data.quick_quiz.answer, btn);
-        optContainer.appendChild(btn);
-      });
-
-      document.getElementById('resultCard').style.display = 'flex';
-      // 검색 후 스크롤을 결과 카드로 부드럽게 이동
-      document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth' });
-    }
-
-    // 퀴즈 정답 확인
-    function checkQuiz(selected, answer, btn) {
-      const allBtns = document.querySelectorAll('.quiz-opt-btn');
-      allBtns.forEach(b => b.disabled = true);
-
-      if (selected === answer) {
-        btn.classList.add('correct');
-        btn.innerText += " ✅ 정답이에요!";
-      } else {
-        btn.classList.add('wrong');
-        btn.innerText += " ❌ 아쉬워요!";
-      }
-    }
-
-    // TTS 발음 듣기
-    function playTTS() {
-      if (!currentWordData || !currentWordData.word) return;
-      window.speechSynthesis.cancel(); // 이전 음성 취소
-      const utter = new SpeechSynthesisUtterance(currentWordData.word);
-      utter.lang = 'en-US';
-      utter.rate = 0.85; // 아이 맞춤형 또박또박한 속도
-      window.speechSynthesis.speak(utter);
-    }
-  </script>
-</body>
-</html>
+        const cleaned = text.replace(/```json/gi, '').replace(/
